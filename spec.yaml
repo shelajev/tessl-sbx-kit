@@ -1,0 +1,38 @@
+schemaVersion: "1"
+kind: mixin
+name: tessl
+displayName: Tessl
+description: Installs the Tessl CLI, injects TESSL_TOKEN, and initializes the project so the agent can use Tessl skills via MCP.
+
+commands:
+  install:
+    - command: 'curl -fsSL https://get.tessl.io | sh'
+      user: "1000"
+      description: Install the Tessl CLI to the agent user's ~/.local/bin (already on PATH)
+
+  startup:
+    - command: ["sh", "-c", "[ -f tessl.json ] || tessl init --name \"$(basename \"$PWD\")\" --agent claude-code --agent codex --agent copilot --agent gemini --agent agents"]
+      description: Initialize Tessl project and wire up MCP for any supported agent (idempotent)
+    - command: ["sh", "-c", "grep -q tessl-kit-marker CLAUDE.md 2>/dev/null || cat >> CLAUDE.md <<'EOF'\n\n<!-- tessl-kit-marker -->\n## Tessl is available\n\nThis sandbox has the Tessl CLI installed and authenticated via TESSL_TOKEN. Use it to discover and install agent skills:\n\n- `tessl search <query>` — search the Tessl registry for skills and tiles\n- `tessl list` — list skills/tiles installed in this project\n- `tessl install <name>` — install a skill or tile into this project\n\nThe Tessl MCP server is also wired up (see .mcp.json) so its tools are directly callable.\nEOF"]
+      description: Append a Tessl usage hint to CLAUDE.md so the agent discovers it (idempotent)
+
+environment:
+  proxyManaged:
+    - TESSL_TOKEN
+
+credentials:
+  sources:
+    tessl:
+      env:
+        - TESSL_TOKEN
+
+network:
+  allowedDomains:
+    - "*.tessl.io"
+    - tessl.io
+  serviceDomains:
+    api.tessl.io: tessl
+  serviceAuth:
+    tessl:
+      headerName: Authorization
+      valueFormat: "Bearer %s"
